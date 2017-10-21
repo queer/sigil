@@ -23,7 +23,7 @@ defmodule SigilGatewayWeb.GatewayChannel do
   alias Phoenix.Socket
 
   @sigil_discord_etcd "sigil-discord"
-  @heartbeat_interval 15000
+  @heartbeat_interval 5000
 
   #intercept ["new_msg"]
 
@@ -95,7 +95,7 @@ defmodule SigilGatewayWeb.GatewayChannel do
 
   def handle_info({:ping, id}, socket) do
     Logger.info "Sending ping", discord_id: id
-    push socket, "sigil:heartbeat", %{}
+    push socket, "sigil:heartbeat", %{id: id}
     {:noreply, socket}
   end
 
@@ -104,6 +104,7 @@ defmodule SigilGatewayWeb.GatewayChannel do
     # We don't just rely on tagging sockets or etc. so that a client can safely reconnect to any node
     # This means that the input message has to contain client id etc.
     # TODO: Sequence numbers?
-    Logger.info ""
+    Logger.info "Got heartbeat from #{inspect msg["id"]}"
+    {:noreply, socket}
   end
 end
