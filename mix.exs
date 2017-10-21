@@ -19,7 +19,7 @@ defmodule SigilGateway.Mixfile do
   def application do
     [
       mod: {SigilGateway.Application, []},
-      extra_applications: [:logger, :runtime_tools, :httpotion]
+      extra_applications: [:logger, :runtime_tools, :httpotion, :redix]
     ]
   end
 
@@ -38,7 +38,10 @@ defmodule SigilGateway.Mixfile do
       {:phoenix_live_reload, "~> 1.0", only: :dev},
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 1.0"},
-      {:httpotion, "~> 3.0.2"}
+      {:httpotion, "~> 3.0.2"},
+      {:redix, ">= 0.0.0"},
+      # TODO: Write custom pool?
+      {:redix_pool, "~> 0.1.0"}
     ]
   end
 end
