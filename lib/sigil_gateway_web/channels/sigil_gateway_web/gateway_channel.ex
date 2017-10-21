@@ -27,12 +27,6 @@ defmodule SigilGatewayWeb.GatewayChannel do
 
   #intercept ["new_msg"]
 
-  def join("gateway:discord-*", msg, socket) do
-    # TODO: This no work, come up with good solution
-    Logger.info "Got private channel! #{inspect socket.channel}"
-    {:ok, socket}
-  end
-
   def join("gateway:discord", msg, socket) do
     # TODO: Extract this functionality out elsewhere?
     shard_id = msg["id"]
