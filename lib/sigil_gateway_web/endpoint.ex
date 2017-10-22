@@ -11,8 +11,6 @@ defmodule SigilGatewayWeb.Endpoint do
     plug Phoenix.CodeReloader
   end
 
-  plug SigilGatewayWeb.Router
-
   @doc """
   Callback invoked for dynamically configuring the endpoint.
 

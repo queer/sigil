@@ -5,7 +5,7 @@ defmodule SigilGateway.Etcd do
 
   def etcd_url do
     case System.get_env "ETCD_URL" do
-      nil -> "http://localhost:2379/"
+      nil -> "http://localhost:2379"
       _ -> System.get_env "ETCD_URL"
     end
   end
