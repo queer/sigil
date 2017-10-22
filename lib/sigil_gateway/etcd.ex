@@ -19,18 +19,18 @@ defmodule SigilGateway.Etcd do
   end
 
   def get_version do
-    etcd_res = etcd_url <> "/version"
+    etcd_res = etcd_url() <> "/version"
                |> HTTPotion.get
     Poison.decode!(etcd_res.body)
   end
 
   def make_dir(dir) do
-    res = HTTPotion.put etcd_api <> "/keys/" <> dir, [body: "dir=true"]
+    res = HTTPotion.put etcd_api() <> "/keys/" <> dir, [body: "dir=true"]
     Poison.decode! res.body
   end
 
   def list_dir(dir) do
-    res = HTTPotion.get etcd_api <> "/keys/" <> dir
+    res = HTTPotion.get etcd_api() <> "/keys/" <> dir
     Poison.decode! res.body
   end
 
@@ -43,11 +43,11 @@ defmodule SigilGateway.Etcd do
   end
 
   def set(key, value) do
-    HTTPotion.put etcd_api <> "/keys/" <> key, [body: "value=#{inspect handle_encode(value)}"]
+    HTTPotion.put etcd_api() <> "/keys/" <> key, [body: "value=#{inspect handle_encode(value)}"]
   end
 
   def get(key) do
-    res = HTTPotion.get etcd_api <> "/keys/" <> key
+    res = HTTPotion.get etcd_api() <> "/keys/" <> key
     Poison.decode! res.body
   end
 

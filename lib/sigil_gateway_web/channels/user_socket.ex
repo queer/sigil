@@ -22,8 +22,8 @@ defmodule SigilGatewayWeb.UserSocket do
   #
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
-  def connect(_params, socket) do
-    Logger.info "Inspecting connect: #{inspect _params}"
+  def connect(params, socket) do
+    Logger.info "Inspecting connect: #{inspect params}"
     {:ok, socket}
   end
 

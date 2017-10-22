@@ -45,3 +45,9 @@ Additionally, the gateway expects the following channel-specific data when conne
   bot_name: "super-shiny-bot"
 }
 ```
+
+## Commentary
+
+### This is Elixir, why are you not using nodes like a nice human?
+
+While it would be nice to be able to do that, I'm using websockets instead of Elixir node communication mainly just so that there's no *requirement* for parts of the stack being written in non-Elixir languages. 

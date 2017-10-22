@@ -44,7 +44,7 @@ defmodule SigilGatewayWeb.GatewayChannel do
     Logger.metadata discord_id: shard_id
     Logger.info "Discord socket got join msg: #{inspect msg}"
 
-    if DiscordShardManager.is_shard_registered bot_name, shard_id do
+    if DiscordShardManager.is_shard_registered? bot_name, shard_id do
 
     else
       Etcd.set DiscordShardManager.sigil_discord_etcd <> "/" <> shard_id, "null"
@@ -116,12 +116,8 @@ defmodule SigilGatewayWeb.GatewayChannel do
     {:noreply, socket}
   end
 
-  defp push_event(socket, data) do
-    push_event socket, @gateway_event, data
-  end
-
   defp push_event(socket, op, data) do
-    push socket, @gateway_eventg, %{
+    push socket, @gateway_event, %{
       op: op,
       d: data
     }

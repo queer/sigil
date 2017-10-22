@@ -29,7 +29,7 @@ defmodule SigilGateway.Discord.ShardManager do
     #     "createdIndex": 1
     #   }
     # ]
-  	etcd_dir = @sigil_discord_etcd <> "/botname"
+  	etcd_dir = @sigil_discord_etcd <> "/" <> bot_name
 
     # Enumerate sigil-discord, check if something with this id has been registered
     listing = Etcd.list_dir etcd_dir
