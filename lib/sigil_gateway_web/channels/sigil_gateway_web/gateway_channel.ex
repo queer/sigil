@@ -22,14 +22,21 @@ defmodule SigilGatewayWeb.GatewayChannel do
   alias SigilGateway.Etcd
   alias Phoenix.Socket
 
+  ## etcd stuff
   @sigil_discord_etcd "sigil-discord"
 
+  ## heartbeat stuff
   @heartbeat_interval 5000
 
+  ## events
   @gateway_event "sigil:gateway"
 
+  ## gateway opcodes
   @op_heartbeat 0
   @op_dispatch 1
+
+  ## gateway error codes
+  @error_unknown_op 1000
 
   def join("sigil:gateway:discord", msg, socket) do
     # TODO: Extract this functionality out elsewhere?
@@ -75,7 +82,14 @@ defmodule SigilGatewayWeb.GatewayChannel do
           unless is_dir do
             # TODO: Handle "resuming" the shard's "session" here
             # We can get the output id from the etcd mapping here, so we just need to schedule sending it back
-            push socket, @gateway_event, %{op: "shard", d: %{shard: node["value"]}}
+            push socket,
+                 @gateway_event,
+                 %{
+                   op: "shard",
+                   d: %{
+                     shard: node["value"]
+                   }
+                 }
           else
             Logger.warn "Shard id #{inspect shard_id} is registered as an etcd dir!?"
           end
@@ -107,10 +121,8 @@ defmodule SigilGatewayWeb.GatewayChannel do
 
   def handle_info({:ping, id}, socket) do
     Logger.info "Sending ping", discord_id: id
-    push socket, @gateway_event, %{
-      op: @op_heartbeat, d: %{
-        id: id
-      }
+    push_event socket, @op_heartbeat, %{
+      id: id
     }
 
     {:noreply, socket}
@@ -118,11 +130,59 @@ defmodule SigilGatewayWeb.GatewayChannel do
 
   def handle_in(@gateway_event, msg, socket) do
     # TODO: Actually handle all event types...
+    unless is_nil msg["op"] do
+      case msg["op"] do
+        @op_heartbeat -> handle_heartbeat msg, socket
+        @op_dispatch -> handle_dispatch msg, socket
+      end
+    else
+      handle_unknown_op msg, socket
+      {:noreply, socket}
+    end
+  end
+
+  defp handle_unknown_op(msg, socket) do
+    case msg["op"] do
+      # @formatter:off
+      nil -> push_event socket, @op_dispatch,
+               error(@error_unknown_op, "no opcode specified")
+      _ -> push_event socket, @op_dispatch,
+             error(@error_unknown_op, "invalid opcode #{inspect msg["op"]}")
+      # @formatter:on
+    end
+    {:noreply, socket}
+  end
+
+  defp handle_heartbeat(msg, socket) do
     # When we get a heartbeat, update the client's last heartbeat time
     # We don't just rely on tagging sockets or etc. so that a client can safely reconnect to any node
     # This means that the input message has to contain client id etc.
+    # TODO: Actually back this with etcd
     # TODO: Sequence numbers?
     Logger.info "Got heartbeat from #{inspect msg["id"]}"
     {:noreply, socket}
+  end
+
+  defp handle_dispatch(msg, socket) do
+
+    {:noreply, socket}
+  end
+
+  defp push_event(socket, data) do
+    push socket, @gateway_event, data
+  end
+
+  defp push_event(socket, op, data) do
+    push socket, %{
+      op: op,
+      d: data
+    }
+  end
+
+  defp error(code, msg) do
+    %{
+      error_code: code,
+      error: msg
+    }
   end
 end
