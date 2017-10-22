@@ -20,10 +20,8 @@ defmodule SigilGatewayWeb.GatewayChannel do
   require Logger
 
   alias SigilGateway.Etcd
-  alias Phoenix.Socket
 
-  ## etcd stuff
-  @sigil_discord_etcd "sigil-discord"
+  alias SigilGateway.Discord.ShardManager, as: DiscordShardManager
 
   ## heartbeat stuff
   @heartbeat_interval 5000
@@ -37,77 +35,19 @@ defmodule SigilGatewayWeb.GatewayChannel do
 
   ## gateway error codes
   @error_unknown_op 1000
+  @error_no_event_type 1001
 
   def join("sigil:gateway:discord", msg, socket) do
     # TODO: Extract this functionality out elsewhere?
     shard_id = msg["id"]
+    bot_name = msg["bot_name"]
     Logger.metadata discord_id: shard_id
     Logger.info "Discord socket got join msg: #{inspect msg}"
 
-    # Enumerate sigil-discord, check if something with this id has been registered
-    listing = Etcd.list_dir @sigil_discord_etcd
-    if Etcd.is_error listing do
-      # Getting an error code means that it doesn't exist, so we create it
-      Logger.info "Creating #{inspect @sigil_discord_etcd} because it doesn't exist..."
-      Etcd.make_dir(@sigil_discord_etcd)
-    end
+    if DiscordShardManager.is_shard_registered bot_name, shard_id do
 
-    Logger.info "Grabbing node list..."
-    # Get the nodes
-    nodes = listing["node"]["nodes"]
-
-    # Conveniently, each node has both the key AND the value.
-    # This data structure looks something like
-    # "nodes": [
-    #   {
-    #     "key": "/foo_dir",
-    #     "dir": true,
-    #     "modifiedIndex": 2,
-    #     "createdIndex": 2
-    #   },
-    #   {
-    #     "key": "/foo",
-    #     "value": "two",
-    #     "modifiedIndex": 1,
-    #     "createdIndex": 1
-    #   }
-    # ]
-    # and so we can just use this iteration here to "resume" "sessions"
-    unless is_nil nodes do
-      for node <- nodes do
-        name = node["key"]
-        is_dir = not is_nil(node["dir"]) and node["dir"]
-        Logger.info "Found node: #{inspect name} (is_dir: #{inspect is_dir})"
-        if name == shard_id do
-          unless is_dir do
-            # TODO: Handle "resuming" the shard's "session" here
-            # We can get the output id from the etcd mapping here, so we just need to schedule sending it back
-            push socket,
-                 @gateway_event,
-                 %{
-                   op: "shard",
-                   d: %{
-                     shard: node["value"]
-                   }
-                 }
-          else
-            Logger.warn "Shard id #{inspect shard_id} is registered as an etcd dir!?"
-          end
-        end
-      end
     else
-      Logger.warn "No nodes found!"
-    end
-
-    shard_key = @sigil_discord_etcd <> "/" <> shard_id
-
-    # Set up the incoming node in etcd
-    prev = Etcd.get shard_key
-    if Etcd.is_error prev do
-      # `null` is the default value, ie. not assigned to anything
-      # When we assign it a shard ID or something, then we update this value to the "real" thing
-      # But if it doesn't exist, we just null it out
-      Etcd.set @sigil_discord_etcd <> "/" <> shard_id, "null"
+      Etcd.set DiscordShardManager.sigil_discord_etcd <> "/" <> shard_id, "null"
     end
 
     # Start heartbeat pings
@@ -164,16 +104,24 @@ defmodule SigilGatewayWeb.GatewayChannel do
   end
 
   defp handle_dispatch(msg, socket) do
-
+    type = msg["t"]
+    data = msg["d"]
+    case type do
+      # @formatter:off
+      nil -> push_event socket, @op_dispatch,
+               error(@error_no_event_type, "no event type specified")
+      _ -> Logger.info "dispatch data: #{inspect data}"
+      # @formatter:on
+    end
     {:noreply, socket}
   end
 
   defp push_event(socket, data) do
-    push socket, @gateway_event, data
+    push_event socket, @gateway_event, data
   end
 
   defp push_event(socket, op, data) do
-    push socket, %{
+    push socket, @gateway_eventg, %{
       op: op,
       d: data
     }

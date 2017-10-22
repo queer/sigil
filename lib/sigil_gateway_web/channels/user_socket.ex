@@ -5,7 +5,7 @@ defmodule SigilGatewayWeb.UserSocket do
 
   ## Channels
   # channel "room:*", SigilGatewayWeb.RoomChannel
-  channel "gateway:*", SigilGatewayWeb.GatewayChannel
+  channel "sigil:gateway:*", SigilGatewayWeb.GatewayChannel
 
   ## Transports
   transport :websocket, Phoenix.Transports.WebSocket
