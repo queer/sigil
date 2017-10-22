@@ -23,11 +23,15 @@ defmodule SigilGatewayWeb.GatewayChannel do
   alias Phoenix.Socket
 
   @sigil_discord_etcd "sigil-discord"
+
   @heartbeat_interval 5000
 
-  #intercept ["new_msg"]
+  @gateway_event "sigil:gateway"
 
-  def join("gateway:discord", msg, socket) do
+  @op_heartbeat 0
+  @op_dispatch 1
+
+  def join("sigil:gateway:discord", msg, socket) do
     # TODO: Extract this functionality out elsewhere?
     shard_id = msg["id"]
     Logger.metadata discord_id: shard_id
@@ -67,6 +71,15 @@ defmodule SigilGatewayWeb.GatewayChannel do
         name = node["key"]
         is_dir = not is_nil(node["dir"]) and node["dir"]
         Logger.info "Found node: #{inspect name} (is_dir: #{inspect is_dir})"
+        if name == shard_id do
+          unless is_dir do
+            # TODO: Handle "resuming" the shard's "session" here
+            # We can get the output id from the etcd mapping here, so we just need to schedule sending it back
+            push socket, @gateway_event, %{op: "shard", d: %{shard: node["value"]}}
+          else
+            Logger.warn "Shard id #{inspect shard_id} is registered as an etcd dir!?"
+          end
+        end
       end
     else
       Logger.warn "No nodes found!"
@@ -82,7 +95,6 @@ defmodule SigilGatewayWeb.GatewayChannel do
       # But if it doesn't exist, we just null it out
       Etcd.set @sigil_discord_etcd <> "/" <> shard_id, "null"
     end
-    # TODO: Handle "resuming" the shard's "session" here
 
     # Start heartbeat pings
     :timer.send_interval(@heartbeat_interval, {:ping, shard_id})
@@ -95,11 +107,17 @@ defmodule SigilGatewayWeb.GatewayChannel do
 
   def handle_info({:ping, id}, socket) do
     Logger.info "Sending ping", discord_id: id
-    push socket, "sigil:heartbeat", %{id: id}
+    push socket, @gateway_event, %{
+      op: @op_heartbeat, d: %{
+        id: id
+      }
+    }
+
     {:noreply, socket}
   end
 
-  def handle_in("sigil:heartbeat", msg, socket) do
+  def handle_in(@gateway_event, msg, socket) do
+    # TODO: Actually handle all event types...
     # When we get a heartbeat, update the client's last heartbeat time
     # We don't just rely on tagging sockets or etc. so that a client can safely reconnect to any node
     # This means that the input message has to contain client id etc.

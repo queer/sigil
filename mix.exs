@@ -41,6 +41,7 @@ defmodule SigilGateway.Mixfile do
       {:httpotion, "~> 3.0.2"},
       {:redix, ">= 0.0.0"},
       # TODO: Write custom pool?
+      # https://github.com/opendoor-labs/redix_pool
       {:redix_pool, "~> 0.1.0"}
     ]
   end
