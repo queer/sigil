@@ -2,6 +2,8 @@ defmodule SigilGateway.Application do
   use Application
   require Logger
 
+  alias SigilGateway.Platform
+
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
@@ -9,6 +11,11 @@ defmodule SigilGateway.Application do
 
     Logger.info "Starting sigil gateway..."
     Logger.info "etcd: #{inspect SigilGateway.Etcd.get_version()}"
+
+    Logger.info "Platform info: #{inspect Platform.hostname_with_ip()}"
+    Logger.info "Is docker?: #{inspect Platform.is_docker?()}"
+
+    # TODO: Should be able to search for other gateway nodes
 
     # Define workers and child supervisors to be supervised
     children = [
