@@ -42,7 +42,9 @@ defmodule SigilGateway.Mixfile do
       {:redix, ">= 0.0.0"},
       # TODO: Write custom pool?
       # https://github.com/opendoor-labs/redix_pool
-      {:redix_pool, "~> 0.1.0"}
+      {:redix_pool, "~> 0.1.0"},
+      {:violet, github: "queer/violet"},
+      {:eden, github: "queer/eden"}
     ]
   end
 end

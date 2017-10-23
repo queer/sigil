@@ -19,8 +19,6 @@ defmodule SigilGatewayWeb.GatewayChannel do
   use Phoenix.Channel
   require Logger
 
-  alias SigilGateway.Etcd
-
   alias SigilGateway.Discord.ShardManager, as: DiscordShardManager
 
   ## heartbeat stuff
@@ -47,7 +45,7 @@ defmodule SigilGatewayWeb.GatewayChannel do
     if DiscordShardManager.is_shard_registered? bot_name, shard_id do
 
     else
-      Etcd.set DiscordShardManager.sigil_discord_etcd <> "/" <> shard_id, "null"
+      Violet.set DiscordShardManager.sigil_discord_etcd <> "/" <> shard_id, "null"
     end
 
     # Start heartbeat pings

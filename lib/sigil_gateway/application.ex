@@ -10,7 +10,7 @@ defmodule SigilGateway.Application do
     import Supervisor.Spec
 
     Logger.info "Starting sigil gateway..."
-    Logger.info "etcd: #{inspect SigilGateway.Etcd.get_version()}"
+    Logger.info "etcd: #{inspect Violet.get_version()}"
 
     Logger.info "Platform info: #{inspect Platform.hostname_with_ip()}"
     Logger.info "Is docker?: #{inspect Platform.is_docker?()}"

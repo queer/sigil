@@ -6,8 +6,6 @@ defmodule SigilGateway.Discord.ShardManager do
   ## etcd stuff
   @sigil_discord_etcd "sigil-discord"
 
-  alias SigilGateway.Etcd
-
   def sigil_discord_etcd do
     @sigil_discord_etcd
   end
@@ -29,22 +27,22 @@ defmodule SigilGateway.Discord.ShardManager do
     #     "createdIndex": 1
     #   }
     # ]
-  	etcd_dir = @sigil_discord_etcd <> "/" <> bot_name
+    etcd_dir = @sigil_discord_etcd <> "/" <> bot_name
 
     # Enumerate sigil-discord, check if something with this id has been registered
-    listing = Etcd.list_dir etcd_dir
-    if Etcd.is_error listing do
+    listing = Violet.list_dir etcd_dir
+    if Violet.is_error? listing do
       # Getting an error code means that it doesn't exist, so we create it
       Logger.info "Creating #{inspect etcd_dir} because it doesn't exist..."
-      Etcd.make_dir(etcd_dir)
+      Violet.make_dir(etcd_dir)
       nil
     else
-    	listing["node"]["nodes"]
+      listing["node"]["nodes"]
     end
   end
 
   def is_shard_registered?(bot_name, id) do
-  	all_shards = get_all_shard_info bot_name
+    all_shards = get_all_shard_info bot_name
     case all_shards do
       nil -> false
       _ -> case find_registered_shard all_shards, id do
