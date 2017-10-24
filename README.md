@@ -29,6 +29,14 @@ The gateway supports the following operations:
     # whatever data goes here
   }
 }
+
+2: BROADCAST_DISPATCH
+{
+  op: 2,
+  d: {
+    # whatever data goes here
+  }
+}
 ```
  
 Note that with OP1, the `t` field is REQUIRED, and must be correctly handled by clients

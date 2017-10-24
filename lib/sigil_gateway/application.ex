@@ -2,7 +2,7 @@ defmodule SigilGateway.Application do
   use Application
   require Logger
 
-  alias SigilGateway.Platform
+  alias Eden.Platform
 
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
@@ -15,7 +15,8 @@ defmodule SigilGateway.Application do
     Logger.info "Platform info: #{inspect Platform.hostname_with_ip()}"
     Logger.info "Is docker?: #{inspect Platform.is_docker?()}"
 
-    # TODO: Should be able to search for other gateway nodes
+    Logger.info "Is node already alive?: #{inspect Node.alive?()}"
+    Logger.info "NODE_LONGNAME: #{inspect System.get_env("NODE_LONGNAME")}"
 
     # Define workers and child supervisors to be supervised
     children = [
@@ -23,6 +24,7 @@ defmodule SigilGateway.Application do
       supervisor(SigilGatewayWeb.Endpoint, []),
       # Start your own worker by calling: SigilGateway.Worker.start_link(arg1, arg2, arg3)
       # worker(SigilGateway.Worker, [arg1, arg2, arg3]),
+      worker(Eden, ["sigil_gateway"], shutdown: 5000)
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

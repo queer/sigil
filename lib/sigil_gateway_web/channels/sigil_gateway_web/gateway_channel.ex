@@ -30,6 +30,7 @@ defmodule SigilGatewayWeb.GatewayChannel do
   ## gateway opcodes
   @op_heartbeat 0
   @op_dispatch 1
+  @op_broadcast_dispatch 2
 
   ## gateway error codes
   @error_unknown_op 1000
@@ -72,6 +73,7 @@ defmodule SigilGatewayWeb.GatewayChannel do
       case msg["op"] do
         @op_heartbeat -> handle_heartbeat msg, socket
         @op_dispatch -> handle_dispatch msg, socket
+        @op_broadcast_dispatch -> handle_broadcast msg, socket
       end
     else
       handle_unknown_op msg, socket
@@ -111,6 +113,20 @@ defmodule SigilGatewayWeb.GatewayChannel do
       _ -> Logger.info "dispatch data: #{inspect data}"
       # @formatter:on
     end
+    {:noreply, socket}
+  end
+
+  defp handle_broadcast(msg, socket) do
+    # Get all connected nodes and do a broadcast
+    for node <- Node.list do
+      unless node == node() do
+        node |> Task.Supervisor.async(SigilGateway.Cluster, :handle_broadcast, [msg])
+        # Don't bother awaiting it
+      else
+        SigilGateway.Cluster.handle_broadcast msg
+      end
+    end
+
     {:noreply, socket}
   end
 
