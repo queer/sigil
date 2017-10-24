@@ -46,8 +46,8 @@ end
 # when running `mix release`, the first release in the file
 # will be used by default
 
-release :sigil_gateway do
-  set version: current_version(:sigil_gateway)
+release :sigil do
+  set version: current_version(:sigil_)
   set applications: [
     :runtime_tools
   ]

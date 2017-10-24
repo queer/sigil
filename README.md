@@ -1,6 +1,6 @@
-# SigilGateway
+# sigil
 
-Gateway for sigil applications.
+Simple distributed gateway/controller. WIP
 
 ## Configuration
 
@@ -58,4 +58,4 @@ Additionally, the gateway expects the following channel-specific data when conne
 
 ### This is Elixir, why are you not using nodes like a nice human?
 
-While it would be nice to be able to do that, I'm using websockets instead of Elixir node communication mainly just so that there's no *requirement* for parts of the stack being written in non-Elixir languages. 
+While it would be nice to be able to do that, I'm using websockets instead of Elixir node communication mainly just so that there's no *requirement* for parts of the stack being written in non-Elixir languages. Gateway nodes communicate with each other through `eden`, but external nodes use websockets. 
