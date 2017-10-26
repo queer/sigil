@@ -10,7 +10,7 @@ defmodule SigilWeb do
 
   def view do
     quote do
-      use Phoenix.View, root: "lib/sigil_gateway_web/templates",
+      use Phoenix.View, root: "lib/sigil_web/templates",
                         namespace: SigilWeb
 
       # Import convenience functions from controllers

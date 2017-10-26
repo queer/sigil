@@ -22,9 +22,11 @@ defmodule Sigil.Application do
     children = [
       # Start the endpoint when the application starts
       supervisor(SigilWeb.Endpoint, []),
-      # Start your own worker by calling: Sigil.Worker.start_link(arg1, arg2, arg3)
-      # worker(Sigil.Worker, [arg1, arg2, arg3]),
-      worker(Eden, ["sigil_gateway"], shutdown: 5000)
+      
+      worker(Eden, ["sigil_gateway"], shutdown: 5000),
+
+      # Task supervisor
+      {Task.Supervisor, name: Sigil.BroadcastTasks}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

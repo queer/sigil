@@ -44,7 +44,7 @@ defmodule SigilWeb.GatewayChannel do
     Logger.info "Discord socket got join msg: #{inspect msg}"
 
     if DiscordShardManager.is_shard_registered? bot_name, shard_id do
-
+      # TODO
     else
       Violet.set DiscordShardManager.sigil_discord_etcd <> "/" <> shard_id, "null"
     end
@@ -79,6 +79,11 @@ defmodule SigilWeb.GatewayChannel do
       handle_unknown_op msg, socket
       {:noreply, socket}
     end
+  end
+
+  def handle_in(event, msg, socket) do
+    Logger.warn "Unknown event: #{event} with msg #{inspect msg}"
+    {:noreply, socket}
   end
 
   defp handle_unknown_op(msg, socket) do
@@ -120,11 +125,11 @@ defmodule SigilWeb.GatewayChannel do
     # Get all connected nodes and do a broadcast
     for node <- Node.list do
       unless node == node() do
-        node |> Task.Supervisor.async(Sigil.Cluster, :handle_broadcast, [msg])
-        # Don't bother awaiting it
-      else
-        Sigil.Cluster.handle_broadcast msg
+        {Sigil.BroadcastTasks, node}
+        |> Task.Supervisor.async(Sigil.Cluster, :handle_broadcast, [msg])
+        |> Task.await
       end
+      Sigil.Cluster.handle_broadcast msg
     end
 
     {:noreply, socket}
