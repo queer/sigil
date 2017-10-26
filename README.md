@@ -43,6 +43,8 @@ Note that with OP1, the `t` field is REQUIRED, and must be correctly handled by 
 
 `DISPATCH` gateway events are sent with a type of `protocol:event`, ex. `discord:shard`
 
+`BROADCAST_DISPATCH` messages are meant for broadcasting to clients of a specific type; an opcode needs to be added for gateway-internal broadcasts
+
 Additionally, the gateway expects the following channel-specific data when connecting:
 
 ```

@@ -22,17 +22,28 @@ defmodule SigilWeb.GatewayChannel do
   alias Sigil.Discord.ShardManager, as: DiscordShardManager
 
   ## heartbeat stuff
+
   @heartbeat_interval 5000
 
   ## events
+
   @gateway_event "sigil:gateway"
 
   ## gateway opcodes
+
   @op_heartbeat 0
   @op_dispatch 1
   @op_broadcast_dispatch 2
 
+  ## gateway dispatch types
+
+  # Shard requests an available shard ID. Gateway responds if and only if a 
+  # shard id is available AND the next shard is allowed to connect. 
+  # TODO: Trigger a "backoff" in all other gateway nodes
+  @dispatch_discord_shard "discord:shard"
+
   ## gateway error codes
+
   @error_unknown_op 1000
   @error_no_event_type 1001
 
@@ -43,14 +54,13 @@ defmodule SigilWeb.GatewayChannel do
     Logger.metadata discord_id: shard_id
     Logger.info "Discord socket got join msg: #{inspect msg}"
 
-    if DiscordShardManager.is_shard_registered? bot_name, shard_id do
-      # TODO
-    else
+    unless DiscordShardManager.is_shard_registered? bot_name, shard_id do
+      Logger.info "Initializing #{bot_name} shard #{shard_id}"
       Violet.set DiscordShardManager.sigil_discord_etcd <> "/" <> shard_id, "null"
     end
 
     # Start heartbeat pings
-    :timer.send_interval(@heartbeat_interval, {:ping, shard_id})
+    :timer.send_interval(@heartbeat_interval, {:heartbeat, shard_id})
 
     Logger.metadata discord_id: nil
     # TODO: Check if a shard's ID was re-assigned to someone else during the disconnection
@@ -58,8 +68,8 @@ defmodule SigilWeb.GatewayChannel do
     {:ok, socket}
   end
 
-  def handle_info({:ping, id}, socket) do
-    Logger.info "Sending ping", discord_id: id
+  def handle_info({:heartbeat, id}, socket) do
+    Logger.info "Sending heartbeat", discord_id: id
     push_event socket, @op_heartbeat, %{
       id: id
     }
@@ -115,6 +125,7 @@ defmodule SigilWeb.GatewayChannel do
       # @formatter:off
       nil -> push_event socket, @op_dispatch,
                error(@error_no_event_type, "no event type specified")
+      @dispatch_discord_shard -> nil
       _ -> Logger.info "dispatch data: #{inspect data}"
       # @formatter:on
     end
@@ -122,15 +133,18 @@ defmodule SigilWeb.GatewayChannel do
   end
 
   defp handle_broadcast(msg, socket) do
+
+    Eden.fanout_exec Sigil.BroadcastTasks, Sigil.Cluster, :handle_broadcast, [msg]
+
     # Get all connected nodes and do a broadcast
-    for node <- Node.list do
-      unless node == node() do
-        {Sigil.BroadcastTasks, node}
-        |> Task.Supervisor.async(Sigil.Cluster, :handle_broadcast, [msg])
-        |> Task.await
-      end
-      Sigil.Cluster.handle_broadcast msg
-    end
+    #for node <- Node.list do
+    #  unless node == node() do
+    #    {Sigil.BroadcastTasks, node}
+    #    |> Task.Supervisor.async(Sigil.Cluster, :handle_broadcast, [msg])
+    #    |> Task.await
+    #  end
+    #end
+    #Sigil.Cluster.handle_broadcast msg
 
     {:noreply, socket}
   end
