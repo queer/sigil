@@ -47,7 +47,7 @@ end
 # will be used by default
 
 release :sigil do
-  set version: current_version(:sigil_)
+  set version: current_version(:sigil)
   set applications: [
     :runtime_tools
   ]

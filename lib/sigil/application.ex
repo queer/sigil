@@ -24,6 +24,7 @@ defmodule Sigil.Application do
       supervisor(SigilWeb.Endpoint, []),
       
       worker(Eden, ["sigil_gateway"], shutdown: 5000),
+      worker(Sigil.Discord.ShardManager, [], name: Sigil.Discord.ShardManager),
 
       # Task supervisor
       {Task.Supervisor, name: Sigil.BroadcastTasks}

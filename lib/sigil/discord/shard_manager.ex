@@ -7,50 +7,59 @@ defmodule Sigil.Discord.ShardManager do
 
   ## GenServer API
 
-  def start_link(args) do
-    GenServer.start_link __MODULE__, args, name: __MODULE__
+  def start_link(initial_state) do
+    GenServer.start_link __MODULE__, initial_state, name: __MODULE__
   end
 
-  def init(shard_count, node_id) do
+  def init(initial_state) do
     # TODO: Should move a lot of this state to etcd...
+    Logger.info "Initial state: #{inspect initial_state}"
     state = %{
       last_connect_time: -1,
-      shard_count: shard_count,
+      shard_count: nil,
       last_shard_manager: nil,
-      node: node_id
+      node: nil
     }
 
     {:ok, state}
   end
 
-  def handle_cast({:connect_backoff, shard_id, node_id, last_connect_time}, state) do
-    state[:last_connect_time] = last_connect_time
-    state[:last_shard_manager] = node_id
+  def handle_cast({:connect_backoff, node_id, last_connect_time}, state) do
+    Map.replace(state, :last_connect_time, last_connect_time)
+    Map.replace(state, :last_shard_manager, node_id)
 
-    {:nreply, state}
+    {:noreply, state}
   end
 
   def handle_cast({:connect_finish, last_connect_time}, state) do
-    state[:last_connect_time] = last_connect_time
-    state[:last_shard_manager] = nil
+    Map.replace(state, :last_connect_time, last_connect_time)
+    Map.replace(state, :last_shard_manager, nil)
   end
 
   # {:whatever, data}, _from, state
-  def handle_call({:attempt_connect, bot_name, shard_id}, _from, state) do
+  def handle_call({:attempt_connect, bot_name, node_id, shard_count}, _from, state) do
+    if is_nil state[:node] do
+      Logger.info "Updating shard manager with node id #{inspect node_id}"
+      Map.replace(state, :node, node_id)
+    end
+    if is_nil state[:shard_count] or state[:shard_count] != shard_count do
+      Logger.info "Updating shard manager with node id #{inspect shard_count}"
+      Map.replace(state, :shard_count, shard_count)
+    end
     # Attempt to connect the given shard uuid
     unless :os.system_time(:millisecond) - state[:last_connect_time] <= 5000 do
       if state[:last_shard_manager] == nil do
         # Tell other GenServers to not handle any connects
         for node <- Node.list do
-          GenServer.cast {__MODULE__, node}, {:connect_backoff, shard_id, state[:node], :os.system_time(:millisecond)}
+          GenServer.cast {__MODULE__, node}, {:connect_backoff, state[:node], :os.system_time(:millisecond)}
         end
 
-        # TODO: Find available shards
         {_, next_id} = get_available_shard_id bot_name, state[:shard_count]
         response = case next_id do
           nil -> {:error, "No id available!"}
           _ -> {:ok, next_id}
         end
+        Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
 
         # Free up other connected GenServers
         for node <- Node.list do

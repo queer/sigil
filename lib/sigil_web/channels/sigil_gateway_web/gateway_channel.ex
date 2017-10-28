@@ -39,13 +39,14 @@ defmodule SigilWeb.GatewayChannel do
 
   # Shard requests an available shard ID. Gateway responds if and only if a 
   # shard id is available AND the next shard is allowed to connect. 
-  # TODO: Trigger a "backoff" in all other gateway nodes
   @dispatch_discord_shard "discord:shard"
 
   ## gateway error codes
 
-  @error_unknown_op 1000
-  @error_no_event_type 1001
+  @error_generic 1000
+  @error_unknown_op 1001
+  @error_no_event_type 1002
+  @error_missing_data 1003
 
   def join("sigil:gateway:discord", msg, socket) do
     # TODO: Extract this functionality out elsewhere?
@@ -78,7 +79,6 @@ defmodule SigilWeb.GatewayChannel do
   end
 
   def handle_in(@gateway_event, msg, socket) do
-    # TODO: Actually handle all event types...
     unless is_nil msg["op"] do
       case msg["op"] do
         @op_heartbeat -> handle_heartbeat msg, socket
@@ -125,26 +125,42 @@ defmodule SigilWeb.GatewayChannel do
       # @formatter:off
       nil -> push_event socket, @op_dispatch,
                error(@error_no_event_type, "no event type specified")
-      @dispatch_discord_shard -> nil
+      @dispatch_discord_shard -> handle_shard_request msg, socket
       _ -> Logger.info "dispatch data: #{inspect data}"
       # @formatter:on
     end
     {:noreply, socket}
   end
 
+
+  defp handle_shard_request(msg, socket) do
+    cond do
+      is_nil msg["bot_name"] -> push_event socket, @op_dispatch, 
+          error(@error_missing_data, "no bot name given")
+      is_nil msg["shard_count"] -> push_event socket, @op_dispatch, 
+          error(@error_missing_data, "no shard count given")
+      true -> send_shard_data msg, socket
+    end
+
+    {:noreply, socket}
+  end
+
+  defp send_shard_data(msg, socket) do
+    {res, data} = GenServer.call Sigil.Discord.ShardManager, 
+        {:attempt_connect, msg["bot_name"], GenServer.call(Eden, :get_hash), 
+            msg["shard_count"]}
+    case res do
+      :error -> push_event socket, @op_dispatch, error(@error_generic, data)
+      :ok ->push_event socket, @op_dispatch, %{
+        shard_id: data,
+        shard_count: msg["shard_count"],
+        bot_name: msg["bot_name"]
+      }
+    end
+  end
+
   defp handle_broadcast(msg, socket) do
-
     Eden.fanout_exec Sigil.BroadcastTasks, Sigil.Cluster, :handle_broadcast, [msg]
-
-    # Get all connected nodes and do a broadcast
-    #for node <- Node.list do
-    #  unless node == node() do
-    #    {Sigil.BroadcastTasks, node}
-    #    |> Task.Supervisor.async(Sigil.Cluster, :handle_broadcast, [msg])
-    #    |> Task.await
-    #  end
-    #end
-    #Sigil.Cluster.handle_broadcast msg
 
     {:noreply, socket}
   end
