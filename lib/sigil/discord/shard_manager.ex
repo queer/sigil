@@ -42,7 +42,11 @@ defmodule Sigil.Discord.ShardManager do
     Map.replace(state, :last_shard_manager, nil)
   end
 
-  # {:whatever, data}, _from, state
+  def handle_call({:handle_reshard, bot_name}, _from, state) do
+    Violet.recursive_delete bot_name <> "/heartbeat"
+    free_shard_ids Range.new(0, state[:shard_count] - 1) |> Enum.to_list, bot_name
+  end
+
   def handle_call({:attempt_connect, node_id, bot_name, shard_hash, shard_count}, _from, state) do
     new_state = %{
       last_connect_time: state[:last_connect_time],
@@ -52,9 +56,19 @@ defmodule Sigil.Discord.ShardManager do
     }
     Logger.info "#{inspect new_state}"
     
-    # TODO: If shard count is different, broadcast a full reboot
+    # If shard count is different, broadcast a full reboot
+    if shard_count != state[:shard_count] do
+      if state[:shard_count] != nil do
+        Logger.info "New shard count, invalidating old shards..."
+      for node <- Node.list do
+        GenServer.cast {__MODULE__, node}, {:handle_reshard, bot_name}
+      end
+      handle_call {:handle_reshard, bot_name}, self(), state
+      Eden.fanout_exec Sigil.BroadcastTasks, Sigil.Cluster, :handle_broadcast, [%{"t": "discord:reshard"}]
+      end
+    end
 
-    # Attempt to connect the given shard uuid
+    # Attempt to connect the shard
     unless :os.system_time(:millisecond) - new_state[:last_connect_time] <= @shard_connect_limit do
       if new_state[:last_shard_manager] == nil do
         heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
@@ -72,7 +86,7 @@ defmodule Sigil.Discord.ShardManager do
           end
         else
           Logger.warn "No heartbeat registry!?"
-          free_shard_ids 0..shard_count |> Enum.to_list, bot_name
+          free_shard_ids Range.new(0, shard_count - 1) |> Enum.to_list, bot_name
         end
 
         # Tell other GenServers to not handle any connects
@@ -151,9 +165,8 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   defp get_available_shard_id(bot_name, shard_count) do
-    # TODO: Work out resharding
     shard_info = get_all_shard_info bot_name
-    all_ids = Enum.to_list 0..shard_count
+    all_ids = Enum.to_list Range.new(0, shard_count - 1)
 
     unless shard_info == nil do
       registered_ids = shard_info
