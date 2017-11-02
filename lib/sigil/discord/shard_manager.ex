@@ -67,11 +67,13 @@ defmodule Sigil.Discord.ShardManager do
             heartbeat_time = shard["value"] |> String.to_integer
             if now - heartbeat_time >= @shard_free_limit do
               Violet.delete shard["key"]
+              free_shard_ids [heartbeat_shard_id], bot_name
               Logger.info "Freed shard id #{inspect heartbeat_shard_id}"
             end
           end
         else
           Logger.warn "No heartbeat registry!?"
+          free_shard_ids 0..shard_count |> Enum.to_list, bot_name
         end
 
         # Tell other GenServers to not handle any connects
@@ -114,35 +116,37 @@ defmodule Sigil.Discord.ShardManager do
 
   ## Non-GenServer API starts here
 
-  defp free_shard_ids(id_list) do
+  defp free_shard_ids(id_list, bot_name) do
     shard_info = get_all_shard_info bot_name
-    all_ids = Enum.to_list 0..shard_count
 
+    check_ids = id_list
+                |> Enum.map(fn(x) ->
+                        if is_integer x do
+                          Integer.to_string x
+                        else
+                          x
+                        end
+                      end)
+                |> Enum.to_list
 
     unless shard_info == nil do
-      registered_ids = shard_info
-                       |> Enum.map(fn(x) -> x["value"] end)
-                       |> Enum.filter(fn(x) -> x != "null" end)
-                       |> Enum.filter(fn(x) -> x != -1 end)
-                       |> Enum.filter(fn(x) -> not is_nil x end)
-                       |> Enum.map(fn(x) -> unless is_integer x do String.to_integer x else x end end)
-                       |> Enum.to_list
+      for shard <- shard_info do
+        unless shard["value"] == "null" do
+          Logger.info "#{inspect shard}"
+          value = unless is_binary shard["value"] do
+            Integer.to_string shard["value"]
+          else
+            shard["value"]
+          end
 
-      available_ids = all_ids
-                      |> Enum.reject(fn(x) -> x in registered_ids end)
-                      |> Enum.to_list 
-      Logger.info "All:        #{inspect all_ids}"
-      Logger.info "Registered: #{inspect registered_ids}"
-      Logger.info "Available:  #{inspect available_ids}"
-
-      next_id = List.first available_ids
-      case next_id do
-        nil -> {:error, "No available ids"}
-        _ -> {:ok, next_id}
+          if check_ids |> Enum.member?(value) do
+            Logger.info "Freeing shard #{inspect value}"
+            Violet.delete shard["key"]
+          else
+            Logger.info "Ignoring safe shard #{inspect value}"
+          end
+        end
       end
-    else
-      # If there is no available data, give back shard id 0
-      {:ok, 0}
     end
     :ok
   end
@@ -152,7 +156,6 @@ defmodule Sigil.Discord.ShardManager do
     shard_info = get_all_shard_info bot_name
     all_ids = Enum.to_list 0..shard_count
 
-
     unless shard_info == nil do
       registered_ids = shard_info
                        |> Enum.map(fn(x) -> x["value"] end)
@@ -165,9 +168,6 @@ defmodule Sigil.Discord.ShardManager do
       available_ids = all_ids
                       |> Enum.reject(fn(x) -> x in registered_ids end)
                       |> Enum.to_list 
-      Logger.info "All:        #{inspect all_ids}"
-      Logger.info "Registered: #{inspect registered_ids}"
-      Logger.info "Available:  #{inspect available_ids}"
 
       next_id = List.first available_ids
       case next_id do
@@ -191,7 +191,13 @@ defmodule Sigil.Discord.ShardManager do
       Violet.make_dir(etcd_dir)
       nil
     else
-      listing
+      unless is_nil listing do
+        listing
+        |> Enum.filter(fn(x) -> is_nil x["dir"] end)
+        |> Enum.to_list
+      else
+        nil
+      end
     end
   end
 
