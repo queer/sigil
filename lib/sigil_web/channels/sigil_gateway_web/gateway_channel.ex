@@ -114,11 +114,9 @@ defmodule SigilWeb.GatewayChannel do
     # When we get a heartbeat, update the client's last heartbeat time
     # We don't just rely on tagging sockets or etc. so that a client can safely reconnect to any node
     # This means that the input message has to contain client id etc.
-    # TODO: Sequence numbers?
     data = msg["d"]
     Logger.info "Got heartbeat from #{inspect data["id"]}, shard #{inspect data["shard"]}"
 
-    # TODO: Back with etcd
     # This means:
     # - {"op": 0, "d": {"id": "11-22-33-44", "bot_name": "memes", shard": 5}}
     # - Just stuff it into etcd_dir/heartbeat_time/id => :os.system_time(:millisecond)

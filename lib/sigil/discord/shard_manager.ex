@@ -57,7 +57,6 @@ defmodule Sigil.Discord.ShardManager do
     # Attempt to connect the given shard uuid
     unless :os.system_time(:millisecond) - new_state[:last_connect_time] <= @shard_connect_limit do
       if new_state[:last_shard_manager] == nil do
-        # TODO: Prune shard heartbeat mappings
         heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
 
         unless is_nil heartbeat_registry do
