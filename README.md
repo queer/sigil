@@ -17,7 +17,9 @@ The gateway supports the following operations:
 {
   op: 0,
   d: {
-    id: "1111-22-3-44444444"
+    id: "1111-22-3-44444444",
+    bot_name: "memes",
+    shard: 42
   }
 }
 
@@ -51,8 +53,22 @@ Additionally, the gateway expects the following channel-specific data when conne
 # sigil:gateway:discord
 {
   id: "1234-whatever",
-  # Allow us to differentiate between bots and have many bots hooked up to one gateway
+  # Allow us to differentiate between bots and have many bots hooked up to one gateway setup
   bot_name: "super-shiny-bot"
+}
+```
+
+Discord shard allocation looks something like:
+
+```
+{
+  op: 1,
+  t: "discord:shard",
+  d: {
+    bot_name: "fancy bot",
+    id: "1-2-3-4",
+    shard_count: 2
+  }
 }
 ```
 

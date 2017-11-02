@@ -40,6 +40,7 @@ defmodule SigilWeb.GatewayChannel do
   # Shard requests an available shard ID. Gateway responds if and only if a 
   # shard id is available AND the next shard is allowed to connect. 
   @dispatch_discord_shard "discord:shard"
+  @dispatch_error "gateway:error"
 
   ## gateway error codes
 
@@ -57,7 +58,7 @@ defmodule SigilWeb.GatewayChannel do
 
     unless DiscordShardManager.is_shard_registered? bot_name, shard_id do
       Logger.info "Initializing #{bot_name} shard #{shard_id}"
-      Violet.set DiscordShardManager.sigil_discord_etcd <> "/" <> shard_id, "null"
+      Violet.set bot_name <> "/" <> shard_id, "null"
     end
 
     # Start heartbeat pings
@@ -79,6 +80,7 @@ defmodule SigilWeb.GatewayChannel do
   end
 
   def handle_in(@gateway_event, msg, socket) do
+    Logger.info "Got gateway message: #{inspect msg}"
     unless is_nil msg["op"] do
       case msg["op"] do
         @op_heartbeat -> handle_heartbeat msg, socket
@@ -112,9 +114,24 @@ defmodule SigilWeb.GatewayChannel do
     # When we get a heartbeat, update the client's last heartbeat time
     # We don't just rely on tagging sockets or etc. so that a client can safely reconnect to any node
     # This means that the input message has to contain client id etc.
-    # TODO: Actually back this with etcd
     # TODO: Sequence numbers?
-    Logger.info "Got heartbeat from #{inspect msg["id"]}"
+    data = msg["d"]
+    Logger.info "Got heartbeat from #{inspect data["id"]}, shard #{inspect data["shard"]}"
+
+    # TODO: Back with etcd
+    # This means:
+    # - {"op": 0, "d": {"id": "11-22-33-44", "bot_name": "memes", shard": 5}}
+    # - Just stuff it into etcd_dir/heartbeat_time/id => :os.system_time(:millisecond)
+    # - When getting next shard id, simply check for things in 
+    #   there that need pruning first
+    bot_name = data["bot_name"]
+    heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
+    if is_nil heartbeat_registry do
+      Violet.make_dir bot_name <> "/heartbeat"
+    end
+
+    Violet.set bot_name <> "/heartbeat/" <> Integer.to_string(data["shard"]), :os.system_time(:millisecond) |> Integer.to_string
+
     {:noreply, socket}
   end
 
@@ -122,39 +139,37 @@ defmodule SigilWeb.GatewayChannel do
     type = msg["t"]
     data = msg["d"]
     case type do
-      # @formatter:off
       nil -> push_event socket, @op_dispatch,
                error(@error_no_event_type, "no event type specified")
-      @dispatch_discord_shard -> handle_shard_request msg, socket
+      @dispatch_discord_shard -> handle_shard_request msg, data, socket
       _ -> Logger.info "dispatch data: #{inspect data}"
-      # @formatter:on
     end
     {:noreply, socket}
   end
 
 
-  defp handle_shard_request(msg, socket) do
+  defp handle_shard_request(msg, d, socket) do
     cond do
-      is_nil msg["bot_name"] -> push_event socket, @op_dispatch, 
+      is_nil d["bot_name"] -> push_event socket, @op_dispatch, 
           error(@error_missing_data, "no bot name given")
-      is_nil msg["shard_count"] -> push_event socket, @op_dispatch, 
+      is_nil d["shard_count"] -> push_event socket, @op_dispatch, 
           error(@error_missing_data, "no shard count given")
-      true -> send_shard_data msg, socket
+      true -> send_shard_data msg, d, socket
     end
 
     {:noreply, socket}
   end
 
-  defp send_shard_data(msg, socket) do
+  defp send_shard_data(msg, d, socket) do
     {res, data} = GenServer.call Sigil.Discord.ShardManager, 
-        {:attempt_connect, msg["bot_name"], GenServer.call(Eden, :get_hash), 
-            msg["shard_count"]}
+        {:attempt_connect, GenServer.call(Eden, :get_hash), d["bot_name"], d["id"], 
+            d["shard_count"]}
     case res do
-      :error -> push_event socket, @op_dispatch, error(@error_generic, data)
-      :ok ->push_event socket, @op_dispatch, %{
+      :error -> push_dispatch socket, @dispatch_error, error(@error_generic, data)
+      :ok -> push_dispatch socket, @dispatch_discord_shard, %{
         shard_id: data,
-        shard_count: msg["shard_count"],
-        bot_name: msg["bot_name"]
+        shard_count: d["shard_count"],
+        bot_name: d["bot_name"]
       }
     end
   end
@@ -163,6 +178,14 @@ defmodule SigilWeb.GatewayChannel do
     Eden.fanout_exec Sigil.BroadcastTasks, Sigil.Cluster, :handle_broadcast, [msg]
 
     {:noreply, socket}
+  end
+
+  defp push_dispatch(socket, type, data) do
+    push socket, @gateway_event, %{
+      op: @op_dispatch,
+      t: type,
+      d: data
+    }
   end
 
   defp push_event(socket, op, data) do

@@ -16,14 +16,14 @@ defmodule Sigil.Application do
     Logger.info "Is docker?: #{inspect Platform.is_docker?()}"
 
     Logger.info "Is node already alive?: #{inspect Node.alive?()}"
-    Logger.info "NODE_LONGNAME: #{inspect System.get_env("NODE_LONGNAME")}"
+    Logger.info "NODE_NAME: #{inspect System.get_env("NODE_NAME")}"
 
     # Define workers and child supervisors to be supervised
     children = [
       # Start the endpoint when the application starts
       supervisor(SigilWeb.Endpoint, []),
       
-      worker(Eden, ["sigil_gateway"], shutdown: 5000),
+      worker(Eden, [], shutdown: 5000),
       worker(Sigil.Discord.ShardManager, [], name: Sigil.Discord.ShardManager),
 
       # Task supervisor
