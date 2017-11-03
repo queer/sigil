@@ -5,8 +5,6 @@ defmodule Sigil.Discord.ShardManager do
 
   require Logger
 
-  # Time allowed between shard connects
-  @shard_connect_limit 7500
   # Time allowed before a shard id is freed up
   @shard_free_limit 15000
 
@@ -36,6 +34,8 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   def handle_call({:attempt_connect, node_id, bot_name, shard_hash, shard_count}, _from, state) do
+    :global.set_lock {:discord_shard, self()}, Node.list
+
     new_state = %{
       node: node_id,
       shard_count: shard_count,
@@ -54,65 +54,45 @@ defmodule Sigil.Discord.ShardManager do
     end
 
     # Attempt to connect the shard
-    unless Violet.is_error?(Violet.get "discord_shard_connecting") do
-      Violet.set "discord_shard_connecting", "yes"
-      last_shard_connect = Violet.get "discord_last_shard_connect"
-      Logger.warn "#{inspect Violet.is_error?(last_shard_connect)}"
-      last_connect_time = unless is_nil(last_shard_connect) or Violet.is_error?(last_shard_connect) do
-        last_shard_connect["value"] |> String.to_integer
-      else
-        -1
-      end
-      unless :os.system_time(:millisecond) - last_connect_time <= @shard_connect_limit do
-        heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
+    heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
 
-        unless is_nil heartbeat_registry do
-          now = :os.system_time(:millisecond)
-          for shard <- heartbeat_registry do
-            heartbeat_shard_id = shard["key"] |> String.split("/") |> List.last
-            heartbeat_time = shard["value"] |> String.to_integer
-            if now - heartbeat_time >= @shard_free_limit do
-              Violet.delete shard["key"]
-              free_shard_ids [heartbeat_shard_id], bot_name
-              Logger.info "Freed shard id #{inspect heartbeat_shard_id}"
-            end
-          end
-        else
-          Logger.warn "No heartbeat registry!?"
-          free_shard_ids Range.new(0, shard_count - 1) |> Enum.to_list, bot_name
+    unless is_nil heartbeat_registry do
+      now = :os.system_time(:millisecond)
+      for shard <- heartbeat_registry do
+        heartbeat_shard_id = shard["key"] |> String.split("/") |> List.last
+        heartbeat_time = shard["value"] |> String.to_integer
+        if now - heartbeat_time >= @shard_free_limit do
+          Violet.delete shard["key"]
+          free_shard_ids [heartbeat_shard_id], bot_name
+          Logger.info "Freed shard id #{inspect heartbeat_shard_id}"
         end
-
-        # TODO: Check if the incoming id is actually registered
-
-        {shard_status, next_id} = get_available_shard_id bot_name, new_state[:shard_count]
-        # TODO: Maintain state in etcd?
-
-        response = case shard_status do
-          :ok -> next_id
-          :error -> nil
-        end
-
-        unless is_nil response do
-          Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
-          Violet.set bot_name <> "/" <> shard_hash, next_id
-        else
-          msg = next_id
-          Logger.warn "Couldn't connect: #{msg}"
-        end
-
-        end_time = :os.system_time(:millisecond)
-        Violet.set "discord_last_shard_connect", end_time |> Integer.to_string
-
-        Violet.delete "/discord_shard_connecting"
-        {:reply, {:ok, response}, new_state}
-      else
-        Violet.delete "/discord_shard_connecting"
-        Logger.warn "Shards connecting too fast!"
-        {:reply, {:error, "Can't connect yet (too soon)"}, new_state}
       end
     else
-      {:reply, {:error, "Other shard manager connecting"}, new_state}
+      Logger.warn "No heartbeat registry!?"
+      free_shard_ids Range.new(0, shard_count - 1) |> Enum.to_list, bot_name
     end
+
+    # TODO: Check if the incoming id is actually registered
+
+    {shard_status, next_id} = get_available_shard_id bot_name, new_state[:shard_count]
+
+    response = case shard_status do
+      :ok -> next_id
+      :error -> nil
+    end
+
+    unless is_nil response do
+      Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
+      Violet.set bot_name <> "/" <> shard_hash, next_id
+      # OP 2 ratelimit
+      :timer.sleep(5000)
+    else
+      Logger.warn "Couldn't connect: #{next_id}"
+    end
+
+    :global.del_lock {:discord_shard, self()}, Node.list
+
+    {:reply, {:ok, response}, new_state}
   end
 
   ## Non-GenServer API starts here
