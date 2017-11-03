@@ -2,6 +2,8 @@
 
 Simple distributed gateway/controller. WIP
 
+TODO: Break dependency on etcd and use :riak_core instead.
+
 ## Configuration
 
 The following env. vars. are expected
