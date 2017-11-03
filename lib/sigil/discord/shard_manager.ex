@@ -33,7 +33,7 @@ defmodule Sigil.Discord.ShardManager do
     {:noreply, state}
   end
 
-  def handle_cast({:attempt_connect, node_id, bot_name, shard_hash, shard_count, socket}, _from, state) do
+  def handle_cast({:attempt_connect, node_id, bot_name, shard_hash, shard_count, socket}, state) do
     :global.set_lock {:discord_shard, self()}, Node.list
 
     new_state = %{
@@ -99,7 +99,7 @@ defmodule Sigil.Discord.ShardManager do
 
     :global.del_lock {:discord_shard, self()}, Node.list
 
-    {:reply, {:ok, response}, new_state}
+    {:noreply, new_state}
   end
 
   ## Non-GenServer API starts here
