@@ -128,7 +128,6 @@ defmodule Sigil.Discord.ShardManager do
           {:reply, {:ok, response}, %{new_state | last_connect_time: end_time}}
         else
           Violet.delete "discord_shard_connecting"
-          Logger.warn "Other shard manager connecting!"
           {:reply, {:error, "Other shard manager connecting"}, new_state}
         end
       else
