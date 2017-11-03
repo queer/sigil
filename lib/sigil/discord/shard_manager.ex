@@ -88,7 +88,7 @@ defmodule Sigil.Discord.ShardManager do
       # OP 2 ratelimit
       :timer.sleep(5000)
       SigilWeb.GatewayChannel.push_dispatch socket, "discord:shard", %{
-          shard_id: shard_hash,
+          shard_id: next_id,
           shard_count: shard_count,
           bot_name: bot_name
         }
