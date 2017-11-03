@@ -18,6 +18,8 @@ WORKDIR /app
 # Build our shit
 RUN mix deps.get
 
+RUN mix deps.update violet eden
+
 # Required for some weebsocket shit
 
 RUN mix compile
