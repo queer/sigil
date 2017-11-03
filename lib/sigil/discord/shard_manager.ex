@@ -73,7 +73,7 @@ defmodule Sigil.Discord.ShardManager do
     end
 
     # Attempt to connect the shard
-    unless Violet.is_error(Violet.get "discord_shard_connecting") do
+    unless Violet.is_error?(Violet.get "discord_shard_connecting") do
       Violet.set "discord_shard_connecting", "yes"
       unless :os.system_time(:millisecond) - new_state[:last_connect_time] <= @shard_connect_limit do
         if new_state[:last_shard_manager] == nil do
