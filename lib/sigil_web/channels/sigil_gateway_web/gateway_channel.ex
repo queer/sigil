@@ -175,24 +175,13 @@ defmodule SigilWeb.GatewayChannel do
   end
 
   defp send_shard_data(msg, d, socket) do
-    try do
-      {res, data} = GenServer.call Sigil.Discord.ShardManager, 
-          {:attempt_connect, GenServer.call(Eden, :get_hash), d["bot_name"], d["id"], d["shard_count"]}
-      case res do
-        :error -> push_dispatch socket, @dispatch_error, error(@error_generic, data)
-        :ok -> push_dispatch socket, @dispatch_discord_shard, %{
-          shard_id: data,
-          shard_count: d["shard_count"],
-          bot_name: d["bot_name"]
-        }
-      end
-    rescue
-      _ -> handle_shard_timeout socket
-    end
+    node_hash = GenServer.call Eden, :get_hash
+
+    GenServer.cast Sigil.Discord.ShardManager, {:attempt_connect, node_hash, d["bot_name"], d["id"], d["shard_count"], socket}
   end
 
-  defp handle_shard_timeout(socket) do
-    Logger.warn "Timed out trying to get shard, backing off..."
+  def handle_shard_backoff(socket) do
+    Logger.warn "Backing off shard..."
     push_dispatch socket, @dispatch_discord_shard_backoff, %{}
   end
 
@@ -202,7 +191,7 @@ defmodule SigilWeb.GatewayChannel do
     {:noreply, socket}
   end
 
-  defp push_dispatch(socket, type, data) do
+  def push_dispatch(socket, type, data) do
     push socket, @gateway_event, %{
       op: @op_dispatch,
       t: type,

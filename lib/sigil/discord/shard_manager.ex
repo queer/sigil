@@ -33,7 +33,7 @@ defmodule Sigil.Discord.ShardManager do
     {:noreply, state}
   end
 
-  def handle_call({:attempt_connect, node_id, bot_name, shard_hash, shard_count}, _from, state) do
+  def handle_cast({:attempt_connect, node_id, bot_name, shard_hash, shard_count, socket}, _from, state) do
     :global.set_lock {:discord_shard, self()}, Node.list
 
     new_state = %{
@@ -87,8 +87,14 @@ defmodule Sigil.Discord.ShardManager do
       update_heartbeat(bot_name, Integer.to_string next_id)
       # OP 2 ratelimit
       :timer.sleep(5000)
+      SigilWeb.GatewayChannel.push_dispatch socket, "discord:shard", %{
+          shard_id: data,
+          shard_count: shard_count,
+          bot_name: bot_name
+        }
     else
       Logger.warn "Couldn't connect: #{next_id}"
+      SigilWeb.GatewayChannel.handle_backoff socket
     end
 
     :global.del_lock {:discord_shard, self()}, Node.list
