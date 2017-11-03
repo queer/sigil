@@ -4,6 +4,8 @@ defmodule Sigil.Application do
 
   alias Eden.Platform
 
+  @version Mix.Project.config[:version]
+
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
@@ -42,5 +44,9 @@ defmodule Sigil.Application do
   def config_change(changed, _new, removed) do
     SigilWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  def version do
+    @version
   end
 end

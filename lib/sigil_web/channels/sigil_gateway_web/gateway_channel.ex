@@ -40,6 +40,9 @@ defmodule SigilWeb.GatewayChannel do
   # Shard requests an available shard ID. Gateway responds if and only if a 
   # shard id is available AND the next shard is allowed to connect. 
   @dispatch_discord_shard "discord:shard"
+
+  @dispatch_gateway_info "gateway:info"
+
   @dispatch_error "gateway:error"
 
   ## gateway error codes
@@ -140,11 +143,23 @@ defmodule SigilWeb.GatewayChannel do
       nil -> push_event socket, @op_dispatch,
                error(@error_no_event_type, "no event type specified")
       @dispatch_discord_shard -> handle_shard_request msg, data, socket
+      @dispatch_gateway_info -> handle_info_request msg, data, socket
       _ -> Logger.info "dispatch data: #{inspect data}"
     end
     {:noreply, socket}
   end
 
+  defp handle_info_request(msg, d, socket) do
+    version = Sigil.Application.version()
+    etcd_stats = Violet.stats()
+
+    push_dispatch socket, @dispatch_gateway_info, %{
+      version: version,
+      etcd: etcd_stats
+    }
+
+    {:noreply, socket}
+  end
 
   defp handle_shard_request(msg, d, socket) do
     cond do
