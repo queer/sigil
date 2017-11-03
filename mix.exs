@@ -19,7 +19,7 @@ defmodule Sigil.Mixfile do
   def application do
     [
       mod: {Sigil.Application, []},
-      extra_applications: [:logger, :runtime_tools, :httpotion, :redix]
+      extra_applications: [:logger, :runtime_tools, :httpotion]
     ]
   end
 
@@ -39,10 +39,7 @@ defmodule Sigil.Mixfile do
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 1.0"},
       {:httpotion, "~> 3.0.2"},
-      {:redix, ">= 0.0.0"},
-      # TODO: Write custom pool?
-      # https://github.com/opendoor-labs/redix_pool
-      {:redix_pool, "~> 0.1.0"},
+
       {:violet, github: "queer/violet"},
       {:eden, github: "queer/eden"}
     ]
