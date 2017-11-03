@@ -47,6 +47,8 @@ defmodule Sigil.Discord.ShardManager do
   def handle_call({:handle_reshard, bot_name}, _from, state) do
     Violet.recursive_delete bot_name <> "/heartbeat"
     free_shard_ids Range.new(0, state[:shard_count] - 1) |> Enum.to_list, bot_name
+
+    {:noreply, state}
   end
 
   def handle_call({:attempt_connect, node_id, bot_name, shard_hash, shard_count}, _from, state) do
