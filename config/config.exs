@@ -11,4 +11,6 @@ config :logger, :console,
   format: "[$time] $metadata[$level] $message\n",
   metadata: [:request_id, :discord_id]
 
+config :logger, level: :info
+
 import_config "#{Mix.env}.exs"

@@ -188,6 +188,7 @@ defmodule SigilWeb.GatewayChannel do
       end
     rescue
       _ -> do
+        Logger.warn "Timed out trying to get shard, backing off..."
         push_dispatch socket, @dispatch_discord_shard_backoff, %{}
       end
     end
