@@ -12,5 +12,5 @@ else
     echo "Rancher metadata, starting in Rancher mode..."
     env MIX_ENV=prod REPLACE_OS_VARS=true \
     NODE_NAME="sigil_gateway" \
-    PORT="4000" ./_build/prod/rel/sigil_gateway/bin/sigil_gateway foreground
+    PORT="4000" mix phx.server
 fi

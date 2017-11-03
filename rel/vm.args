@@ -1,3 +1,0 @@
--smp auto
--name ${NODE_LONGNAME}
--cookie ${COOKIE}
