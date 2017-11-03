@@ -22,4 +22,4 @@ RUN mix deps.get
 
 RUN mix compile
 
-CMD mix phx.server
+CMD epmd -daemon && mix phx.server
