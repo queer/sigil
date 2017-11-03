@@ -40,7 +40,6 @@ defmodule Sigil.Discord.ShardManager do
       node: node_id,
       shard_count: shard_count,
     }
-    Logger.info "#{inspect new_state}"
 
     # If shard count is different, broadcast a full reboot
     if shard_count != state[:shard_count] do
@@ -59,7 +58,7 @@ defmodule Sigil.Discord.ShardManager do
       Violet.set "discord_shard_connecting", "yes"
       last_shard_connect = Violet.get "discord_last_shard_connect"
       Logger.warn "#{inspect Violet.is_error?(last_shard_connect)}"
-      last_connect_time = unless is_nil last_shard_connect or Violet.is_error?(last_shard_connect) do
+      last_connect_time = unless is_nil(last_shard_connect) or Violet.is_error?(last_shard_connect) do
         last_shard_connect["value"] |> String.to_integer
       else
         -1
