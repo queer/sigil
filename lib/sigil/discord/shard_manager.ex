@@ -40,6 +40,8 @@ defmodule Sigil.Discord.ShardManager do
   def handle_cast({:connect_finish, last_connect_time}, state) do
     Map.replace(state, :last_connect_time, last_connect_time)
     Map.replace(state, :last_shard_manager, nil)
+
+    {:noreply, state}
   end
 
   def handle_call({:handle_reshard, bot_name}, _from, state) do
