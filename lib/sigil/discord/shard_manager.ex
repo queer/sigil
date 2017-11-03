@@ -59,7 +59,7 @@ defmodule Sigil.Discord.ShardManager do
       last_shard_manager: nil
     }
     Logger.info "#{inspect new_state}"
-    
+
     # If shard count is different, broadcast a full reboot
     if shard_count != state[:shard_count] do
       if state[:shard_count] != nil do
@@ -73,61 +73,71 @@ defmodule Sigil.Discord.ShardManager do
     end
 
     # Attempt to connect the shard
-    unless :os.system_time(:millisecond) - new_state[:last_connect_time] <= @shard_connect_limit do
-      if new_state[:last_shard_manager] == nil do
-        heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
+    unless Violet.is_error(Violet.get "discord_shard_connecting") do
+      Violet.set "discord_shard_connecting", "yes"
+      unless :os.system_time(:millisecond) - new_state[:last_connect_time] <= @shard_connect_limit do
+        if new_state[:last_shard_manager] == nil do
+          heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
 
-        unless is_nil heartbeat_registry do
-          now = :os.system_time(:millisecond)
-          for shard <- heartbeat_registry do
-            heartbeat_shard_id = shard["key"] |> String.split("/") |> List.last
-            heartbeat_time = shard["value"] |> String.to_integer
-            if now - heartbeat_time >= @shard_free_limit do
-              Violet.delete shard["key"]
-              free_shard_ids [heartbeat_shard_id], bot_name
-              Logger.info "Freed shard id #{inspect heartbeat_shard_id}"
+          unless is_nil heartbeat_registry do
+            now = :os.system_time(:millisecond)
+            for shard <- heartbeat_registry do
+              heartbeat_shard_id = shard["key"] |> String.split("/") |> List.last
+              heartbeat_time = shard["value"] |> String.to_integer
+              if now - heartbeat_time >= @shard_free_limit do
+                Violet.delete shard["key"]
+                free_shard_ids [heartbeat_shard_id], bot_name
+                Logger.info "Freed shard id #{inspect heartbeat_shard_id}"
+              end
             end
+          else
+            Logger.warn "No heartbeat registry!?"
+            free_shard_ids Range.new(0, shard_count - 1) |> Enum.to_list, bot_name
           end
+
+          # TODO: Check if the incoming id is actually registered
+
+          # Tell other GenServers to not handle any connects
+          for node <- Node.list do
+            GenServer.cast {__MODULE__, node}, {:connect_backoff, new_state[:node], :os.system_time(:millisecond)}
+          end
+
+          {shard_status, next_id} = get_available_shard_id bot_name, new_state[:shard_count]
+          # TODO: Maintain state in etcd?
+
+          response = case shard_status do
+            :ok -> next_id
+            :error -> nil
+          end
+
+          unless is_nil response do
+            Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
+            Violet.set bot_name <> "/" <> shard_hash, next_id
+          else
+            msg = next_id
+            Logger.warn "Couldn't connect: #{msg}"
+          end
+
+          end_time = :os.system_time(:millisecond)
+          # Free up other connected GenServers
+          for node <- Node.list do
+            GenServer.cast {__MODULE__, node}, {:connect_finish, end_time}
+          end
+
+          Violet.delete "discord_shard_connecting"
+          {:reply, {:ok, response}, %{new_state | last_connect_time: end_time}}
         else
-          Logger.warn "No heartbeat registry!?"
-          free_shard_ids Range.new(0, shard_count - 1) |> Enum.to_list, bot_name
+          Violet.delete "discord_shard_connecting"
+          Logger.warn "Other shard manager connecting!"
+          {:reply, {:error, "Other shard manager connecting"}, new_state}
         end
-
-        # Tell other GenServers to not handle any connects
-        for node <- Node.list do
-          GenServer.cast {__MODULE__, node}, {:connect_backoff, new_state[:node], :os.system_time(:millisecond)}
-        end
-
-        {shard_status, next_id} = get_available_shard_id bot_name, new_state[:shard_count]
-        # TODO: Maintain state in etcd?
-
-        response = case shard_status do
-          :ok -> next_id
-          :error -> nil
-        end
-
-        unless is_nil response do
-          Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
-          Violet.set bot_name <> "/" <> shard_hash, next_id
-        else
-          msg = next_id
-          Logger.warn "Couldn't connect: #{msg}"
-        end
-
-        end_time = :os.system_time(:millisecond)
-        # Free up other connected GenServers
-        for node <- Node.list do
-          GenServer.cast {__MODULE__, node}, {:connect_finish, end_time}
-        end
-
-        {:reply, {:ok, response}, %{new_state | last_connect_time: end_time}}
       else
-        Logger.warn "Other shard manager connecting!"
-        {:reply, {:error, "Other shard manager connecting"}, new_state}
+        Violet.delete "discord_shard_connecting"
+        Logger.warn "Shards connecting too fast!"
+        {:reply, {:error, "Can't connect yet (too soon)"}, new_state}
       end
     else
-      Logger.warn "Shards connecting too fast!"
-      {:reply, {:error, "Can't connect yet (too soon)"}, new_state}
+      {:reply, {:error, "Other shard manager connecting"}, new_state}
     end
   end
 
