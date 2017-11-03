@@ -84,6 +84,7 @@ defmodule Sigil.Discord.ShardManager do
     unless is_nil response do
       Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
       Violet.set bot_name <> "/" <> shard_hash, next_id
+      update_heartbeat(bot_name, Integer.to_string next_id)
       # OP 2 ratelimit
       :timer.sleep(5000)
     else
@@ -96,6 +97,15 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   ## Non-GenServer API starts here
+
+  defp update_heartbeat(bot_name, shard_id) do
+    heartbeat_registry = Violet.list_dir bot_name <> "/heartbeat"
+    if is_nil heartbeat_registry do
+      Violet.make_dir bot_name <> "/heartbeat"
+    end
+
+    Violet.set bot_name <> "/heartbeat/" <> shard_id, :os.system_time(:millisecond) |> Integer.to_string
+  end
 
   defp free_shard_ids(id_list, bot_name) do
     shard_info = get_all_shard_info bot_name
