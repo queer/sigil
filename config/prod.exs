@@ -5,5 +5,3 @@ config :sigil, SigilWeb.Endpoint,
   http: [host: "0.0.0.0", port: 4000]
 
 config :logger, level: :info
-
-import_config "prod.secret.exs"
