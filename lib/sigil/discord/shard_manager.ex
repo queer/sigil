@@ -181,6 +181,7 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   defp get_all_shard_info(bot_name) do
+    Logger.info "Fetching info for #{bot_name}"
     etcd_dir = bot_name
 
     # Enumerate sigil-discord, check if something with this id has been registered
