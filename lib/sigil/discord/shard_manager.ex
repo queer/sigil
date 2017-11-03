@@ -124,14 +124,14 @@ defmodule Sigil.Discord.ShardManager do
             GenServer.cast {__MODULE__, node}, {:connect_finish, end_time}
           end
 
-          Violet.delete "discord_shard_connecting"
+          Violet.delete "/discord_shard_connecting"
           {:reply, {:ok, response}, %{new_state | last_connect_time: end_time}}
         else
-          Violet.delete "discord_shard_connecting"
+          Violet.delete "/discord_shard_connecting"
           {:reply, {:error, "Other shard manager connecting"}, new_state}
         end
       else
-        Violet.delete "discord_shard_connecting"
+        Violet.delete "/discord_shard_connecting"
         Logger.warn "Shards connecting too fast!"
         {:reply, {:error, "Can't connect yet (too soon)"}, new_state}
       end
