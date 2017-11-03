@@ -57,8 +57,10 @@ defmodule Sigil.Discord.ShardManager do
     # Attempt to connect the shard
     unless Violet.is_error?(Violet.get "discord_shard_connecting") do
       Violet.set "discord_shard_connecting", "yes"
-      last_connect_time = unless Violet.is_error?(Violet.get "discord_last_shard_connect") do
-        Violet.get("discord_last_shard_connect")["value"] |> String.to_integer
+      last_shard_connect = Violet.get "discord_last_shard_connect"
+      Logger.warn "#{inspect Violet.is_error?(last_shard_connect)}"
+      last_connect_time = unless Violet.is_error?(last_shard_connect) do
+        last_shard_connect["value"] |> String.to_integer
       else
         -1
       end
