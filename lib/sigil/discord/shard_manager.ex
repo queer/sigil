@@ -6,7 +6,7 @@ defmodule Sigil.Discord.ShardManager do
   require Logger
 
   # Time allowed between shard connects
-  @shard_connect_limit 5000
+  @shard_connect_limit 75000
   # Time allowed before a shard id is freed up
   @shard_free_limit 15000
 
