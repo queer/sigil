@@ -175,8 +175,7 @@ defmodule SigilWeb.GatewayChannel do
 
   defp send_shard_data(msg, d, socket) do
     {res, data} = GenServer.call Sigil.Discord.ShardManager, 
-        {:attempt_connect, GenServer.call(Eden, :get_hash), d["bot_name"], d["id"], d["shard_count"]},
-        :infinity # Don't timeout waiting for response, as we might be waiting a while for the lock
+        {:attempt_connect, GenServer.call(Eden, :get_hash), d["bot_name"], d["id"], d["shard_count"]}
     case res do
       :error -> push_dispatch socket, @dispatch_error, error(@error_generic, data)
       :ok -> push_dispatch socket, @dispatch_discord_shard, %{
