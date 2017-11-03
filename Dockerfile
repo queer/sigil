@@ -24,4 +24,4 @@ RUN mix deps.update violet eden
 
 RUN mix compile
 
-CMD epmd -daemon && bash ./boot.sh
+CMD epmd -daemon && mix phx.server
