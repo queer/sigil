@@ -40,6 +40,7 @@ defmodule SigilWeb.GatewayChannel do
   # Shard requests an available shard ID. Gateway responds if and only if a 
   # shard id is available AND the next shard is allowed to connect. 
   @dispatch_discord_shard "discord:shard"
+  @dispatch_discord_shard_backoff "discord:shard:backoff"
 
   @dispatch_gateway_info "gateway:info"
 
@@ -174,15 +175,21 @@ defmodule SigilWeb.GatewayChannel do
   end
 
   defp send_shard_data(msg, d, socket) do
-    {res, data} = GenServer.call Sigil.Discord.ShardManager, 
-        {:attempt_connect, GenServer.call(Eden, :get_hash), d["bot_name"], d["id"], d["shard_count"]}
-    case res do
-      :error -> push_dispatch socket, @dispatch_error, error(@error_generic, data)
-      :ok -> push_dispatch socket, @dispatch_discord_shard, %{
-        shard_id: data,
-        shard_count: d["shard_count"],
-        bot_name: d["bot_name"]
-      }
+    try do
+      {res, data} = GenServer.call Sigil.Discord.ShardManager, 
+          {:attempt_connect, GenServer.call(Eden, :get_hash), d["bot_name"], d["id"], d["shard_count"]}
+      case res do
+        :error -> push_dispatch socket, @dispatch_error, error(@error_generic, data)
+        :ok -> push_dispatch socket, @dispatch_discord_shard, %{
+          shard_id: data,
+          shard_count: d["shard_count"],
+          bot_name: d["bot_name"]
+        }
+      end
+    rescue
+      _ -> do
+        push_dispatch socket, @dispatch_discord_shard_backoff, %{}
+      end
     end
   end
 
