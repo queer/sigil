@@ -7,6 +7,8 @@ defmodule Sigil.Discord.ShardManager do
 
   # Time allowed before a shard id is freed up
   @shard_free_limit 15000
+  # How long a shard has to finish up connecting before the next one is allowed
+  @shard_connect_time 30000
 
   ## GenServer API
 
@@ -34,9 +36,7 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   def handle_cast({:attempt_connect, node_id, bot_name, shard_hash, shard_count, socket}, state) do
-    GenServer.call Amelia, {:timedatalock, :discord_shard, 30000, :"#{shard_hash}"}, :infinity
-
-    # :global.set_lock {:discord_shard, self()}, Node.list
+    GenServer.call Amelia, {:timedatalock, :discord_shard, @shard_connect_time, :"#{shard_hash}"}, :infinity
 
     new_state = %{
       node: node_id,
