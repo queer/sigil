@@ -41,7 +41,8 @@ defmodule Sigil.Mixfile do
       {:httpotion, "~> 3.0.2"},
 
       {:violet, github: "queer/violet"},
-      {:eden, github: "queer/eden"}
+      {:eden, github: "queer/eden"},
+      {:amelia, github: "queer/amelia"}
     ]
   end
 end

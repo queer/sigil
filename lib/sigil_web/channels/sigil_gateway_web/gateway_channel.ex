@@ -41,6 +41,7 @@ defmodule SigilWeb.GatewayChannel do
   # shard id is available AND the next shard is allowed to connect. 
   @dispatch_discord_shard "discord:shard"
   @dispatch_discord_shard_backoff "discord:shard:backoff"
+  @dispatch_discord_shard_complete "discord:shard:complete"
 
   @dispatch_gateway_info "gateway:info"
 
@@ -145,9 +146,14 @@ defmodule SigilWeb.GatewayChannel do
                error(@error_no_event_type, "no event type specified")
       @dispatch_discord_shard -> handle_shard_request msg, data, socket
       @dispatch_gateway_info -> handle_info_request msg, data, socket
+      @dispatch_discord_shard_complete -> handle_shard_complete msg, data, socket
       _ -> Logger.info "dispatch data: #{inspect data}"
     end
     {:noreply, socket}
+  end
+
+  defp handle_shard_complete(msg, d, socket) do
+    send Amelia, {:timedataunlock, :discord_shard, :"#{d["id"]}"}
   end
 
   defp handle_info_request(msg, d, socket) do

@@ -34,7 +34,9 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   def handle_cast({:attempt_connect, node_id, bot_name, shard_hash, shard_count, socket}, state) do
-    :global.set_lock {:discord_shard, self()}, Node.list
+    GenServer.cast Amelia, {:timedatalock, :discord_shard, 30000, :"#{shard_hash}"}
+
+    # :global.set_lock {:discord_shard, self()}, Node.list
 
     new_state = %{
       node: node_id,
@@ -85,8 +87,8 @@ defmodule Sigil.Discord.ShardManager do
       Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
       Violet.set bot_name <> "/" <> shard_hash, next_id
       update_heartbeat(bot_name, Integer.to_string next_id)
-      # OP 2 ratelimit
-      :timer.sleep(5500)
+      # OP 2 ratelimit. Handled in the gateway instead of in the shards
+      :timer.sleep(5000)
       SigilWeb.GatewayChannel.push_dispatch socket, "discord:shard", %{
           shard_id: next_id,
           shard_count: shard_count,
@@ -94,10 +96,13 @@ defmodule Sigil.Discord.ShardManager do
         }
     else
       Logger.warn "Couldn't connect: #{next_id}"
-      SigilWeb.GatewayChannel.handle_backoff socket
+      SigilWeb.GatewayChannel.handle_shard_backoff socket
     end
 
-    :global.del_lock {:discord_shard, self()}, Node.list
+    # :global.del_lock {:discord_shard, self()}, Node.list
+    # 
+    # The lock will auto-release after whatever interval, so we just listen for
+    # a gateway dispatch event that can release it early
 
     {:noreply, new_state}
   end

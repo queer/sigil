@@ -27,6 +27,7 @@ defmodule Sigil.Application do
       
       worker(Eden, [], shutdown: 5000),
       worker(Sigil.Discord.ShardManager, [], name: Sigil.Discord.ShardManager),
+      worker(Amelia, [], name: Amelia),
 
       # Task supervisor
       {Task.Supervisor, name: Sigil.BroadcastTasks}
