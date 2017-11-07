@@ -87,8 +87,6 @@ defmodule Sigil.Discord.ShardManager do
       Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
       Violet.set bot_name <> "/" <> shard_hash, next_id
       update_heartbeat(bot_name, Integer.to_string next_id)
-      # OP 2 ratelimit. Handled in the gateway instead of in the shards
-      :timer.sleep(5000)
       SigilWeb.GatewayChannel.push_dispatch socket, "discord:shard", %{
           shard_id: next_id,
           shard_count: shard_count,
