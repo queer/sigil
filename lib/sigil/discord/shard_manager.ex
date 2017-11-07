@@ -34,7 +34,7 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   def handle_cast({:attempt_connect, node_id, bot_name, shard_hash, shard_count, socket}, state) do
-    GenServer.cast Amelia, {:timedatalock, :discord_shard, 30000, :"#{shard_hash}"}
+    GenServer.call Amelia, {:timedatalock, :discord_shard, 30000, :"#{shard_hash}"}, :infinity
 
     # :global.set_lock {:discord_shard, self()}, Node.list
 
