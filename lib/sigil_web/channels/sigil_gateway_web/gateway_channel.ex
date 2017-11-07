@@ -76,7 +76,7 @@ defmodule SigilWeb.GatewayChannel do
   end
 
   def handle_info({:heartbeat, id}, socket) do
-    Logger.info "Sending heartbeat", discord_id: id
+    # Logger.info "Sending heartbeat", discord_id: id
     push_event socket, @op_heartbeat, %{
       id: id
     }
@@ -85,7 +85,7 @@ defmodule SigilWeb.GatewayChannel do
   end
 
   def handle_in(@gateway_event, msg, socket) do
-    Logger.info "Got gateway message: #{inspect msg}"
+    # Logger.info "Got gateway message: #{inspect msg}"
     unless is_nil msg["op"] do
       case msg["op"] do
         @op_heartbeat -> handle_heartbeat msg, socket
@@ -120,7 +120,7 @@ defmodule SigilWeb.GatewayChannel do
     # We don't just rely on tagging sockets or etc. so that a client can safely reconnect to any node
     # This means that the input message has to contain client id etc.
     data = msg["d"]
-    Logger.info "Got heartbeat from #{inspect data["id"]}, shard #{inspect data["shard"]}"
+    # Logger.info "Got heartbeat from #{inspect data["id"]}, shard #{inspect data["shard"]}"
 
     # This means:
     # - {"op": 0, "d": {"id": "11-22-33-44", "bot_name": "memes", shard": 5}}

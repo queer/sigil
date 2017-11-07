@@ -36,7 +36,9 @@ defmodule Sigil.Discord.ShardManager do
   end
 
   def handle_cast({:attempt_connect, node_id, bot_name, shard_hash, shard_count, socket}, state) do
+    Logger.warn "Waiting on lock - #{shard_hash}"
     GenServer.call Amelia, {:timedatalock, :discord_shard, @shard_connect_time, :"#{shard_hash}"}, :infinity
+    Logger.warn "Got lock, starting connect - #{shard_hash}"
 
     new_state = %{
       node: node_id,
@@ -83,6 +85,7 @@ defmodule Sigil.Discord.ShardManager do
       :error -> nil
     end
 
+    Logger.warn "Preparing connect - #{shard_hash}"
     unless is_nil response do
       Logger.info "Connecting #{bot_name} shard #{inspect next_id}"
       Violet.set bot_name <> "/" <> shard_hash, next_id
@@ -97,8 +100,7 @@ defmodule Sigil.Discord.ShardManager do
       SigilWeb.GatewayChannel.handle_shard_backoff socket
     end
 
-    # :global.del_lock {:discord_shard, self()}, Node.list
-    # 
+    Logger.warn "Done - #{shard_hash}"
     # The lock will auto-release after whatever interval, so we just listen for
     # a gateway dispatch event that can release it early
 
